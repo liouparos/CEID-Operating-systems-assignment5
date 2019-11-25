@@ -1,0 +1,86 @@
+diff --git a/include/minix/callnr.h b/include/minix/callnr.h
+index 6f145cf..b9106a7 100644
+--- a/include/minix/callnr.h
++++ b/include/minix/callnr.h
+@@ -65,6 +65,7 @@
+ #define SETGROUPS_O	  66
+ #define GETMCONTEXT       67
+ #define SETMCONTEXT       68
++#define FINODE		  69
+ 
+ /* Posix signal handling. */
+ #define SIGACTION	  71
+diff --git a/servers/vfs/Makefile b/servers/vfs/Makefile
+index b3a2031..1c179c7 100644
+--- a/servers/vfs/Makefile
++++ b/servers/vfs/Makefile
+@@ -7,7 +7,7 @@ SRCS=	main.c open.c read.c write.c pipe.c dmap.c \
+ 	filedes.c stadir.c protect.c time.c \
+ 	lock.c misc.c utility.c select.c table.c \
+ 	vnode.c vmnt.c request.c \
+-	tll.c comm.c worker.c coredump.c
++	tll.c comm.c worker.c coredump.c finode.c
+ 
+ .if ${MKCOVERAGE} != "no"
+ SRCS+=  gcov.c
+diff --git a/servers/vfs/finode.c b/servers/vfs/finode.c
+new file mode 100644
+index 0000000..de1c2ab
+--- /dev/null
++++ b/servers/vfs/finode.c
+@@ -0,0 +1,30 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <lib.h>
++#include <minix/type.h>
++#include <minix/const.h>
++#include <minix/ipc.h>
++#include "/usr/src/servers/pm/pm.h"
++
++int do_finode(void)
++{
++char file = m_in.m1_i1;
++int fd, inode;
++fd = open(&file, O_RDONLY);
++
++if (fd >= 0) {
++  struct stat file_stat;
++  int ret;
++  ret = fstat (fd, &file_stat);
++  inode = file_stat.st_ino;
++  printf("inode: %d\n", inode);
++  }
++  else{
++  printf("inode: -");
++  }
++return 0;
++}
+diff --git a/servers/vfs/proto.h b/servers/vfs/proto.h
+index b98d742..e0ab5de 100644
+--- a/servers/vfs/proto.h
++++ b/servers/vfs/proto.h
+@@ -144,6 +144,7 @@ int do_svrctl(void);
+ int do_getsysinfo(void);
+ int pm_dumpcore(endpoint_t proc_e, int sig, vir_bytes exe_name);
+ void * ds_event(void *arg);
++int do_finode(void);
+ 
+ /* mount.c */
+ int do_fsready(void);
+diff --git a/servers/vfs/table.c b/servers/vfs/table.c
+index 8371e34..f8199d1 100644
+--- a/servers/vfs/table.c
++++ b/servers/vfs/table.c
+@@ -84,7 +84,7 @@ int (*call_vec[])(void) = {
+ 	do_fstat, 	/* 66 = fstat - badly numbered, being phased out */
+ 	do_lstat,	/* 67 = lstat - badly numbered, being phased out */
+ 	no_sys,		/* 68 = unused	*/
+-	no_sys,		/* 69 = unused  */
++	do_finode,	/* 69 = file inode  */
+ 	no_sys,		/* 70 = unused  */
+ 	no_sys,		/* 71 = (sigaction) */
+ 	no_sys,		/* 72 = (sigsuspend) */
